@@ -1,4 +1,4 @@
-function [fig_handle, line_handles, t_max, t_min] = initialize_figure(n_chans, n_feats)
+function [fig_handle, line_handles, t_max, t_min] = initialize_figure(n_chans, n_feats, my_app)
     % PLOTSETUP1CH  sets up plots to visualize EMG input and the control
     % value calculated later in EMG_live. 
     % 
@@ -23,7 +23,7 @@ function [fig_handle, line_handles, t_max, t_min] = initialize_figure(n_chans, n
 
     y_labels = cell( 1, n_plots);
     axes_handles = cell( 1, n_plots);
-    line_handles = cell( 1, n_plots);
+    line_handles = cell( 1, n_plots+1);
 
     feature_labels = ["MAV" "RMS" "Motor Cue" "Mean Frequency" "Median Frequency"];
     
@@ -38,21 +38,23 @@ function [fig_handle, line_handles, t_max, t_min] = initialize_figure(n_chans, n
     fig_handle = figure('units', 'normalized'); %open figure
     set( fig_handle, 'outerposition', [0, 0, 0.5, 1])%moveFigure to left half of screen
     
-    for i = 1:n_plots
-        axes_handles{i} = subplot(n_plots, 1, i);
-        line_handles{i} = animatedline;
-        xlim([0 t_max])
-        ylabel(y_labels{i})
-        xticks([]);
-        
-    end
-    linkaxes([axes_handles{:}],'x')
-    xlabel('Time [s]')
+%     for i = 1:n_plots
+%         axes_handles{i} = subplot(n_plots, 1, i);
+%         line_handles{i} = animatedline;
+%         if i == n_plots
+%             line_handles{i+1} = animatedline;
+%             end
+%         xlim([0 t_max])
+%         ylabel(y_labels{i})
+%         xticks([]); 
+%     end
+    line_handles{1} = animatedline(my_app.UIAxes_3);
+    line_handles{2} = animatedline(my_app.UIAxes_2);
+    line_handles{3} = animatedline(my_app.UIAxes);
+    % add MAV threshold line
+%     linkaxes([axes_handles{:}],'x')
+%     xlabel('Time [s]')
 
-    ylim(axes_handles{1}, [-2.5 2.5])
-    ylim(axes_handles{2}, [-0.1 2.0])
-%     ylim(axes_handles{3}, [-0.1 2.0])
-%     ylim(axes_handles{4}, [-0.1, 1.1])
-%     ylim(axes_handles{5}, [0 300])
-%     ylim(axes_handles{6}, [0 300])
+%     ylim(axes_handles{1}, [-2.5 2.5])
+%     ylim(axes_handles{2}, [-0.1 2.0])
 end

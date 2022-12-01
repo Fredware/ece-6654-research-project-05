@@ -1,4 +1,4 @@
-function [t_max, t_min] = update_figure(animatedLines, timestamp, data, features, prev_samp, data_idx, feature_idx, t_max, t_min, mav_thresh)
+function [t_max, t_min] = update_figure(animatedLines, timestamp, data, features, prev_samp, data_idx, feature_idx, t_max, t_min)
 % [Tmax, Tmin] = updatePlot1ch(animatedLines, timeStamp, data, control, prevSamp, dataindex, controlindex, Tmax, Tmin)
 
 % updatePlot1ch updates the plots for the EMG data and control
@@ -26,8 +26,8 @@ function [t_max, t_min] = update_figure(animatedLines, timestamp, data, features
         if i <= 1
             addpoints(animatedLines{i}, timestamp, max( data(i, prev_samp:data_idx-1)));
             addpoints(animatedLines{i}, timestamp, min( data(i, prev_samp:data_idx-1)));
-        elseif i==length(animatedLines)
-            addpoints(animatedLines{i}, timestamp, mav_thresh)
+        else if i==length(animatedLines)
+                
         else
             addpoints(animatedLines{i}, timestamp, features(i-1, feature_idx));
         end

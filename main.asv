@@ -1,7 +1,5 @@
 %% TODO
-% 1. Add MAV thresh on MAV plot
-% 2. Limit x-axes on live plots
-% 3. Figure out how to plot the last spike
+% 1. 
 %% Reset workspace
 try
     uno.close;
@@ -9,6 +7,7 @@ catch
 end
 clear all; 
 clc;
+
 %% Establish connection with Arduino
 % Pass COM port number as argument to bypass automatic connection.
 [uno, uno_connected] = connect_board();
