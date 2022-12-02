@@ -1,5 +1,7 @@
 %% TODO
-% 1. 
+% 1. Add MAV thresh on MAV plot
+% 2. Limit x-axes on live plots
+% 3. Figure out how to plot the last spike
 %% Reset workspace
 try
     uno.close;
@@ -11,32 +13,46 @@ clc;
 %% Establish connection with Arduino
 % Pass COM port number as argument to bypass automatic connection.
 [uno, uno_connected] = connect_board();
-my_app = TCApp;
 
-my_app.UIFigure
+%% Initialize the App
+tc_app = TCApp;
+tc_app.CollectingBaselineLamp.Color = 'black';
+tc_app.RecordingSpikesLamp.Color = 'black';
+
 %% Baseline Data Collection
+tc_app.CollectingBaselineLamp.Color = 'red';
 baseline_period = 3; %seconds
 fs = 1000; % Hz
 
-% Let the background buffer accumulate data for the specified period
-pause(baseline_period)
-
-% Retrieve data from buffer
+% Retrieve the latest data from buffer
 emg = uno.getRecentEMG; % value range: [-2.5:2.5]; length range: [1:buffer length]
 
-% Compute detection threshold using the retrieved data
-baseline_data = emg(1:baseline_period*fs);
+% Compute detection threshold using latest samples of retrieved data
+baseline_data = emg(end-fs*baseline_period:end);
 mav_thresh = compute_threshold(baseline_data);
 
+%% Set up animated lines
+tc_app.CollectingBaselineLamp.Color = 'black';
+% [fig, animated_lines, t_max, t_min] = initialize_figure(n_chans, n_feats, tc_app);
+n_lines = 4; % sEMG, MAV, MAV threshold, MAV event  
+t_max = 10; %secs
+t_min = 0; %secs
+line_handles = cell( 1, n_lines);
+
+line_handles{1} = animatedline(tc_app.UIAxes_semg);
+line_handles{2} = animatedline(tc_app.UIAxes_mav);
+line_handles{3} = animatedline(tc_app.UIAxes_mav);
+line_handles{4} = animatedline(tc_app.UIAxes_mav_event);
+
+linkaxes([tc_app.UIAxes_semg, tc_app.UIAxes_mav], 'x');
+
+tc_app.UIAxes_semg.XLim = [t_min t_max];
+animated_lines = line_handles;
 %% Plotting in real time
-% SET UP PLOT
-INSTRUCTION_PERIOD = 4; %seconds
-RELAXATION_PERIOD = 2; %seconds
 
 n_chans = 1; % raw sEMG channels
 n_feats = 1; % real-time features computed from sEMG channels
-
-[fig, animated_lines, t_max, t_min] = initialize_figure(n_chans, n_feats, my_app);
+mav_win_len = 300; %samples
 
 % INITIALIZATION
 [data, features, data_idx, features_idx, prev_sample, prev_timestamp] = initialize_data_structures(60e3, n_feats);
@@ -46,7 +62,7 @@ pause(0.5)
 
 % Run until time is out or figure closes
 % while( ishandle(fig))
-while( ishandle(my_app.UIFigure))
+while( ishandle(tc_app.UIFigure))
     % SAMPLE ARDUINO
     pause(0.0111111)
     try
@@ -58,16 +74,16 @@ while( ishandle(my_app.UIFigure))
             data( :, data_idx:data_idx + new_samples - 1) = emg(1,:);
             % update the data index for inserting future data
             data_idx = data_idx + new_samples;
-            
             features_idx = features_idx + 1;
         end
     catch
         disp("Data acquisition: FAILED")
     end
 
-    if ~isempty(emg) && data_idx > 500
-        % UPDATE timestamp
-%         timestamp = toc;
+    % make sure buffer is not empty and contains enough data to compute
+    % your features
+    if ~isempty(emg) && data_idx > mav_win_len
+        % transform sample time to time in seconds
         timestamp = (data_idx - 1) / fs;
         % CALCULATE FEATURES
         try
@@ -80,15 +96,13 @@ while( ishandle(my_app.UIFigure))
         end
 
         t_features(features_idx) = timestamp;
-%         tempStart = t_data(end);
-%         t_data( prev_sample:data_idx-1) = linspace( tempStart, timestamp, new_samples);
         
         % UPDATE PLOT
-        [t_max, t_min] = update_figure(animated_lines, timestamp, data, features, prev_sample, data_idx, features_idx, t_max, t_min, mav_thresh);
-    
-      
+        [t_max, t_min] = update_figure(animated_lines, timestamp, data, features, prev_sample, data_idx, features_idx, t_max, t_min, mav_thresh, tc_app);
 
-
+%         if mav_feat > mav_thresh && features_idx > 10
+%             plot(tc_app.UIAxes_mav_event, t_features(features_idx-10:features_idx), features(features_idx-10:features_idx));
+%         end
         prev_timestamp = timestamp;
         prev_sample = data_idx;
     end
