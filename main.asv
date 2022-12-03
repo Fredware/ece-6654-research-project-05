@@ -24,6 +24,7 @@ tc_app.DataLogger = uno;
 %% Baseline Data Collection
 baseline_data = tc_app.BaselineData;
 mav_thresh = compute_threshold(baseline_data);
+%% Debugging 
 mav_thresh = 0.5;
 
 %% Set up animated lines
@@ -45,10 +46,15 @@ tc_app.UIAxes_semg.XLim = [t_min t_max];
 
 animated_lines = line_handles;
 %% Plotting in real time
+MONITORING_MAV = 0;
+START_DETECTED = 1;
+STOP_DETECTED = 2;
+state = MONITORING_MAV;
 
 n_chans = 1; % raw sEMG channels
 n_feats = 1; % real-time features computed from sEMG channels
 mav_win_len = 300; %samples
+mav_event_padding = 1; %seconds
 
 % INITIALIZATION
 [data, features, data_idx, features_idx, prev_sample, prev_timestamp] = initialize_data_structures(60e3, n_feats);
@@ -84,21 +90,40 @@ while( tc_app.RecordSession)
         % CALCULATE FEATURES
         try
             [mav_feat, ~] = compute_amplitude_feats(data(:, data_idx-300: data_idx-1));
-
             features( 1, features_idx) = mav_feat;
-
         catch
             disp('Something broke in your code!')
         end
-
         t_features(features_idx) = timestamp;
         
         % UPDATE PLOT
         [t_max, t_min] = update_figure(animated_lines, timestamp, data, features, prev_sample, data_idx, features_idx, t_max, t_min, mav_thresh, tc_app);
 
-%         if mav_feat > mav_thresh && features_idx > 10
-%             plot(tc_app.UIAxes_mav_event, t_features(features_idx-10:features_idx), features(features_idx-10:features_idx));
-%         end
+        if state == MONITORING_MAV
+            if mav_feat > mav_thresh
+                state = START_DETECTED;
+                mav_event_start = data_idx-1;
+            end
+        elseif state == START_DETECTED
+            if mav_feat < mav_thresh
+                state = STOP_DETECTED;
+                mav_event_stop = data_idx-1;
+                t_stop = timestamp;
+            end
+        elseif state == STOP_DETECTED
+            if (timestamp - t_stop) > mav_event_padding
+                state = MONITORING_MAV;
+                mav_event_data = data(mav_event_start-mav_event_padding*fs:mav_event_stop+mav_event_padding*fs);
+                % Insert Dani's code here
+
+                % mav_event = compute_mav_event(mav_event_data)
+                % [metric1, metric2, metric3] = compute_metrics(mav_event)
+                 x = linspace(0.5, 2.5, 10);
+                 y = (rand(1)+0.1)*sin(x);
+                 plot(tc_app.UIAxes_mav_event,x,y);
+            end
+        end
+
         prev_timestamp = timestamp;
         prev_sample = data_idx;
     end
@@ -128,10 +153,6 @@ plot(full_table.Time, full_table{:, 2})
 ylim([-0.1*scaling_factor 1.1*scaling_factor])
 grid on
 
-
-
 %% close the arduino serial connection before closing MATLAB
 uno.close;
 disp('Board connection: TERMINATED')
-%% save data to file
-raw_data = data(1:data_idx-1);
