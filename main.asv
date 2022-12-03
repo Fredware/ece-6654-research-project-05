@@ -13,26 +13,20 @@ clc;
 %% Establish connection with Arduino
 % Pass COM port number as argument to bypass automatic connection.
 [uno, uno_connected] = connect_board();
+fs = 1000; % Hz
 
 %% Initialize the App
 tc_app = TCApp;
 tc_app.CollectingBaselineLamp.Color = 'black';
 tc_app.RecordingSpikesLamp.Color = 'black';
+tc_app.DataLogger = uno;
 
 %% Baseline Data Collection
-tc_app.CollectingBaselineLamp.Color = 'red';
-baseline_period = 3; %seconds
-fs = 1000; % Hz
-
-% Retrieve the latest data from buffer
-emg = uno.getRecentEMG; % value range: [-2.5:2.5]; length range: [1:buffer length]
-
-% Compute detection threshold using latest samples of retrieved data
-baseline_data = emg(end-fs*baseline_period:end);
+baseline_data = tc_app.BaselineData;
 mav_thresh = compute_threshold(baseline_data);
+mav_thresh = 0.5;
 
 %% Set up animated lines
-tc_app.CollectingBaselineLamp.Color = 'black';
 % [fig, animated_lines, t_max, t_min] = initialize_figure(n_chans, n_feats, tc_app);
 n_lines = 4; % sEMG, MAV, MAV threshold, MAV event  
 t_max = 10; %secs
@@ -45,8 +39,10 @@ line_handles{3} = animatedline(tc_app.UIAxes_mav);
 line_handles{4} = animatedline(tc_app.UIAxes_mav_event);
 
 linkaxes([tc_app.UIAxes_semg, tc_app.UIAxes_mav], 'x');
+linkaxes([tc_app.UIAxes_mav, tc_app.UIAxes_mav_event], 'y');
 
 tc_app.UIAxes_semg.XLim = [t_min t_max];
+
 animated_lines = line_handles;
 %% Plotting in real time
 
@@ -62,7 +58,7 @@ pause(0.5)
 
 % Run until time is out or figure closes
 % while( ishandle(fig))
-while( ishandle(tc_app.UIFigure))
+while( tc_app.RecordSession)
     % SAMPLE ARDUINO
     pause(0.0111111)
     try
