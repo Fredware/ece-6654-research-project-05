@@ -23,9 +23,9 @@ tc_app.DataLogger = uno;
 
 %% Baseline Data Collection
 baseline_data = tc_app.BaselineData;
-mav_thresh = compute_threshold(baseline_data);
+[mav_thresh, mav_baseline] = compute_threshold(baseline_data);
 %% Debugging 
-mav_thresh = 0.5;
+mav_thresh = 0.75;
 
 %% Set up animated lines
 % [fig, animated_lines, t_max, t_min] = initialize_figure(n_chans, n_feats, tc_app);
@@ -102,24 +102,30 @@ while( tc_app.RecordSession)
         if state == MONITORING_MAV
             if mav_feat > mav_thresh
                 state = START_DETECTED;
+
                 mav_event_start = data_idx-1;
             end
         elseif state == START_DETECTED
             if mav_feat < mav_thresh
                 state = STOP_DETECTED;
+                
                 mav_event_stop = data_idx-1;
                 t_stop = timestamp;
             end
         elseif state == STOP_DETECTED
             if (timestamp - t_stop) > mav_event_padding
                 state = MONITORING_MAV;
+                
                 mav_event_data = data(mav_event_start-mav_event_padding*fs:mav_event_stop+mav_event_padding*fs);
-                % Insert Dani's code here
-                % mav_event = compute_mav_event(mav_event_data)
-                % [metric1, metric2, metric3] = compute_metrics(mav_event)
-                 x = linspace(0.5, 2.5, 10);
-                 y = (rand(1)+0.1)*sin(x);
-                 plot(tc_app.UIAxes_mav_event,x,y);
+                mav_event = compute_running_mav(mav_event_data, 0.100*fs);
+
+                y = mav_event;
+                x = linspace(0, length(mav_event)/fs, length(mav_event));
+ 
+                plot(tc_app.UIAxes_mav_event, x, y);
+                [tc_init,tc_term]= tc_comp(x,y,mav_thresh);
+               
+                tc_app.TextArea.Value = sprintf("Time constant init is %.3f \nTime constant term is %.3f", tc_init, tc_term);
             end
         end
 
